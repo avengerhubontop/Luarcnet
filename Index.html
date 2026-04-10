@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luarc V1.4</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap');
+
+  :root {
+    --gold: #c9a84c;
+    --gold-light: #e2c06a;
+    --gold-dim: #6b5222;
+    --gold-faint: #c9a84c12;
+    --bg: #060504;
+    --bg2: #090807;
+    --bg3: #0e0c09;
+    --border: #1c1810;
+    --border2: #252010;
+    --text: #857d6e;
+    --text-dim: #35302a;
+    --text-bright: #cfc4a0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* intro */
+  .intro {
+    position: fixed; inset: 0; background: #000; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.8s;
+  }
+  .intro h1 { font-size: 50px; font-weight: 800; color: #fff; letter-spacing: -2px; }
+  .intro h1 em { color: var(--gold); font-style: normal; }
+  .intro span { font-size: 10px; color: var(--gold-dim); letter-spacing: 4px; margin-top: 6px; }
+  .intro-line { width: 160px; height: 1px; background: #111; margin-top: 22px; overflow: hidden; }
+  .intro-line::after {
+    content: ''; display: block; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    animation: swipe 1.2s ease forwards;
+  }
+  @keyframes swipe { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  @keyframes up { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+  /* sidebar */
+  .sidebar {
+    width: 215px; min-width: 215px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border2);
+    display: flex; flex-direction: column;
+    transition: width .3s ease, min-width .3s ease;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .sidebar.gone { width: 0 !important; min-width: 0 !important; }
+
+  .logo-area {
+    padding: 20px 16px 17px;
+    border-bottom: 1px solid var(--border);
+    position: relative; flex-shrink: 0;
+  }
+  .logo-area::after {
+    content: ''; position: absolute; bottom: 0; left: 14px; right: 14px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim) 40%, var(--gold-dim) 60%, transparent);
+  }
+  .logo { font-size: 21px; font-weight: 800; color: #f0e8d0; letter-spacing: -0.5px; white-space: nowrap; }
+  .logo em { color: var(--gold); font-style: normal; }
+  .logo-tag { font-size: 8px; color: var(--gold-dim); letter-spacing: 3px; margin-top: 4px; white-space: nowrap; }
+
+  .sb-group { padding: 12px 10px 4px; flex-shrink: 0; }
+  .sb-group-label { font-size: 8px; color: var(--text-dim); letter-spacing: 2px; padding: 0 8px; margin-bottom: 5px; text-transform: uppercase; white-space: nowrap; }
+
+  .nav {
+    display: flex; align-items: center; gap: 9px; padding: 8px 9px;
+    border-radius: 5px; cursor: pointer; font-size: 11px; color: var(--text);
+    transition: all 0.18s; margin-bottom: 1px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .nav:hover { background: var(--bg3); color: var(--text-bright); }
+  .nav.on {
+    background: linear-gradient(135deg, #100e05, #1a1608);
+    color: var(--gold-light); border-color: var(--gold-dim);
+    box-shadow: inset 0 0 14px var(--gold-faint);
+  }
+  .nav-ic { width: 14px; height: 14px; flex-shrink: 0; }
+  .pip { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: blink 2.2s infinite; margin-left: auto; flex-shrink: 0; }
+
+  .sdivider { border: none; border-top: 1px solid var(--border); margin: 7px 12px; flex-shrink: 0; }
+
+  .sb-footer {
+    margin-top: auto; padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 9px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;
+  }
+  .alive { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); animation: blink 2s infinite; flex-shrink: 0; }
+
+  /* toggle button */
+  .arrow-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    left: 215px; width: 17px; height: 44px;
+    background: var(--bg2); border: 1px solid var(--border2); border-left: none;
+    border-radius: 0 6px 6px 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 300; color: var(--gold-dim);
+    transition: left .3s ease, background .15s, color .15s;
+  }
+  .arrow-btn:hover { background: var(--bg3); color: var(--gold); }
+  .arrow-btn.flipped { left: 0; }
+  .arrow-btn.flipped svg { transform: rotate(180deg); }
+  .arrow-btn svg { transition: transform .3s ease; }
+
+  /* main area */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  .topbar {
+    padding: 13px 20px; border-bottom: 1px solid var(--border2);
+    background: var(--bg2);
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; flex-shrink: 0;
+  }
+  .topbar::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim) 25%, var(--gold-dim) 75%, transparent);
+  }
+  .tb-left h2 { font-size: 11px; font-weight: 700; color: var(--text-bright); letter-spacing: 2px; text-transform: uppercase; }
+  .tb-badge {
+    font-size: 9px; color: var(--gold-dim);
+    background: linear-gradient(135deg, #0c0a04, #171308);
+    border: 1px solid var(--border2); border-radius: 4px; padding: 4px 9px; letter-spacing: 2px;
+  }
+
+  .content { flex: 1; padding: 18px 22px; overflow-y: auto; }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .pane { display: none; animation: up 0.2s ease; }
+  .pane.on { display: block; }
+
+  .lbl { font-size: 8px; color: var(--gold-dim); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+
+  .cbox {
+    background: #040302; border: 1px solid var(--border2);
+    border-radius: 6px; padding: 13px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .cbox:focus-within { border-color: var(--gold-dim); box-shadow: inset 0 0 20px #0a0800; }
+
+  textarea {
+    background: transparent; color: #706858; border: none; outline: none;
+    resize: none; font-size: 11px; line-height: 1.5; width: 100%;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  textarea::placeholder { color: var(--text-dim); }
+
+  .row { display: flex; gap: 12px; margin-bottom: 13px; }
+  .col { flex: 1; }
+
+  input[type=checkbox] { accent-color: var(--gold); width: 12px; height: 12px; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text); padding: 5px 0; }
+
+  .tinput {
+    background: #040302; border: 1px solid var(--border2);
+    border-radius: 5px; padding: 7px 10px;
+    font-size: 11px; color: var(--text-bright);
+    font-family: 'JetBrains Mono', monospace; width: 100%;
+    transition: border-color .2s;
+  }
+  .tinput:focus { outline: none; border-color: var(--gold-dim); }
+
+  /* toggle switch */
+  .sw-row { display: flex; align-items: center; padding: 6px 0; }
+  .sw-text { flex: 1; font-size: 11px; color: var(--text); }
+  .sw {
+    width: 34px; height: 18px; border-radius: 9px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    position: relative; cursor: pointer; flex-shrink: 0;
+    transition: all .25s;
+  }
+  .sw.on { background: #1e1608; border-color: var(--gold-dim); }
+  .sw::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text-dim); transition: all .25s;
+  }
+  .sw.on::after { left: 18px; background: var(--gold); }
+
+  .key-box {
+    background: linear-gradient(135deg, #0a0900, #110e04);
+    border: 1px solid var(--border2); border-radius: 6px;
+    padding: 13px; margin-bottom: 12px;
+    animation: up .18s ease;
+  }
+  .key-box-hdr { font-size: 8px; color: var(--gold-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+
+  .gdiv { height: 1px; margin: 12px 0; background: linear-gradient(90deg, transparent, var(--gold-dim), transparent); }
+
+  .btn {
+    background: linear-gradient(135deg, #0c0a04, #141108);
+    border: 1px solid var(--gold-dim); color: var(--gold-dim);
+    padding: 11px 34px; border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+    cursor: crosshair; transition: all .25s;
+  }
+  .btn:hover { color: var(--gold-light); border-color: var(--gold); box-shadow: 0 0 18px var(--gold-faint); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+  .copybtn {
+    background: var(--bg3); border: 1px solid var(--border2);
+    color: var(--text-dim); padding: 4px 11px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    cursor: pointer; transition: all .18s; letter-spacing: 1px;
+  }
+  .copybtn:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  .out-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+  .statsbar {
+    font-size: 9px; color: var(--gold-dim);
+    background: #0a0900; border: 1px solid var(--border2);
+    border-radius: 4px; padding: 6px 11px; margin-top: 8px;
+    display: none; letter-spacing: 1px;
+  }
+
+  /* status tab */
+  .sc { background: linear-gradient(135deg, #070600, #0f0c04); border: 1px solid var(--border2); border-radius: 7px; padding: 15px; margin-bottom: 11px; }
+  .sc-ttl { font-size: 8px; color: var(--gold-dim); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .sc-ttl::after { content:''; flex:1; height:1px; background: var(--border); }
+  .srow { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .srow:last-child { border-bottom: none; }
+  .sk { font-size: 11px; color: var(--text-dim); }
+  .sv { font-size: 11px; color: var(--gold); font-weight: 600; }
+  .sonline { display: inline-flex; align-items: center; gap: 5px; color: var(--gold); font-size: 11px; }
+
+  /* protections */
+  .cs { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 68px 20px; text-align: center; }
+  .cs-icon { width: 54px; height: 54px; border: 1px solid var(--border2); background: linear-gradient(135deg, #0a0900, #161208); border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px var(--gold-faint); }
+  .cs h3 { font-size: 12px; color: var(--gold-dim); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 5px; }
+  .cs p { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+
+  svg.ic { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+
+<div class="intro" id="intro">
+  <h1>LUA<em>RC</em></h1>
+  <span>V1.4 &nbsp;·&nbsp; Future #1 Obfuscator</span>
+  <div class="intro-line"></div>
+</div>
+
+<div class="arrow-btn" id="arrowBtn" onclick="toggleSidebar()">
+  <svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="5,1 1,6 5,11"/>
+  </svg>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="logo-area">
+    <div class="logo">Lua<em>rc</em></div>
+    <div class="logo-tag">V1.4 · Future #1 Obfuscator</div>
+  </div>
+
+  <div class="sb-group">
+    <div class="sb-group-label">Tools</div>
+    <div class="nav on" id="nav-obfuscate" onclick="goTab('obfuscate')">
+      <span class="nav-ic"><svg class="ic" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8l3 3-3 3M13 11h4"/></svg></span>
+      Obfuscate
+    </div>
+    <div class="nav" id="nav-status" onclick="goTab('status')">
+      <span class="nav-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>
+      Status
+      <span class="pip"></span>
+    </div>
+  </div>
+
+  <div class="sdivider"></div>
+
+  <div class="sb-group">
+    <div class="sb-group-label">Security</div>
+    <div class="nav" id="nav-protections" onclick="goTab('protections')">
+      <span class="nav-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      Protections
+    </div>
+  </div>
+
+  <div class="sb-footer">
+    <span class="alive"></span> online
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left"><h2 id="tbTitle">Obfuscate</h2></div>
+    <div class="tb-badge">LUARC V1.4</div>
+  </div>
+
+  <div class="content">
+
+    <!-- obfuscate -->
+    <div class="pane on" id="pane-obfuscate">
+      <div class="lbl" style="margin-bottom:6px;">source</div>
+      <div class="cbox" style="margin-bottom:13px;">
+        <textarea id="input" rows="7" placeholder="-- paste lua here"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <div class="lbl">macros</div>
+          <div class="chk"><input type="checkbox" id="noVirt" checked><span>LUARC_NO_VIRTUALIZE</span></div>
+        </div>
+        <div class="col">
+          <div class="lbl">secret key</div>
+          <input id="keyInput" type="text" value="luarc123" class="tinput" style="margin-top:5px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:13px;">
+        <div class="lbl">key system</div>
+        <div class="sw-row">
+          <span class="sw-text">require key on execution</span>
+          <div class="sw" id="keySw" onclick="toggleKey()"></div>
+        </div>
+      </div>
+
+      <div id="keyPanel" style="display:none;">
+        <div class="key-box">
+          <div class="key-box-hdr">key config</div>
+          <div class="row">
+            <div class="col">
+              <div class="lbl">valid key</div>
+              <input type="text" class="tinput" id="validKey" placeholder="LUARC-XXXX-XXXX" style="margin-top:4px;">
+            </div>
+            <div class="col">
+              <div class="lbl">key link</div>
+              <input type="text" class="tinput" id="keyLink" placeholder="https://..." style="margin-top:4px;">
+            </div>
+          </div>
+          <div class="chk"><input type="checkbox" id="keyHwid"><span>bind to HWID</span></div>
+        </div>
+      </div>
+
+      <div class="gdiv"></div>
+
+      <div style="display:flex;justify-content:center;margin:4px 0 16px;">
+        <button onclick="build()" class="btn" id="buildBtn">GENERATE</button>
+      </div>
+
+      <div class="out-hdr">
+        <div class="lbl" style="margin:0;">output</div>
+        <button class="copybtn" id="copyBtn" onclick="copyOut()" style="display:none;">copy</button>
+      </div>
+      <div class="cbox">
+        <textarea id="output" rows="13" readonly placeholder="-- output here"></textarea>
+      </div>
+      <div class="statsbar" id="stats"></div>
+    </div>
+
+    <!-- status -->
+    <div class="pane" id="pane-status">
+      <div class="sc">
+        <div class="sc-ttl">services</div>
+        <div class="srow"><span class="sk">obfuscator</span><span class="sonline"><span class="alive" style="width:5px;height:5px;margin:0;"></span>online</span></div>
+        <div class="srow"><span class="sk">anti-tamper</span><span class="sonline"><span class="alive" style="width:5px;height:5px;margin:0;"></span>active</span></div>
+        <div class="srow"><span class="sk">key system</span><span class="sonline"><span class="alive" style="width:5px;height:5px;margin:0;"></span>ready</span></div>
+      </div>
+      <div class="sc">
+        <div class="sc-ttl">session</div>
+        <div class="srow"><span class="sk">started</span><span class="sv" id="sesStart">—</span></div>
+        <div class="srow"><span class="sk">uptime</span><span class="sv" id="uptime">00:00:00</span></div>
+        <div class="srow"><span class="sk">obfuscations</span><span class="sv" id="totalB">0</span></div>
+        <div class="srow"><span class="sk">output size</span><span class="sv" id="totalS">0 KB</span></div>
+      </div>
+      <div class="sc">
+        <div class="sc-ttl">engine</div>
+        <div class="srow"><span class="sk">version</span><span class="sv">1.4.0</span></div>
+        <div class="srow"><span class="sk">encoder</span><span class="sv">Luarc Model V1.4</span></div>
+        <div class="srow"><span class="sk">anti-tamper</span><span class="sv">level 7</span></div>
+        <div class="srow"><span class="sk">key system</span><span class="sv" id="keyDisp">off</span></div>
+      </div>
+    </div>
+
+    <!-- protections -->
+    <div class="pane" id="pane-protections">
+      <div class="cs">
+        <div class="cs-icon">
+          <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px;stroke:var(--gold-dim);stroke-width:1.4;">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>Protections</h3>
+        <p>coming soon</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let sbOpen = true;
+  function toggleSidebar() {
+    sbOpen = !sbOpen;
+    document.getElementById('sidebar').classList.toggle('gone', !sbOpen);
+    const btn = document.getElementById('arrowBtn');
+    btn.classList.toggle('flipped', !sbOpen);
+    btn.style.left = sbOpen ? '215px' : '0';
+  }
+
+  function goTab(name) {
+    document.querySelectorAll('.nav').forEach(n => n.classList.remove('on'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+    document.getElementById('nav-' + name).classList.add('on');
+    document.getElementById('pane-' + name).classList.add('on');
+    const titles = { obfuscate: 'Obfuscate', status: 'Status', protections: 'Protections' };
+    document.getElementById('tbTitle').textContent = titles[name];
+  }
+
+  let keyOn = false;
+  function toggleKey() {
+    keyOn = !keyOn;
+    document.getElementById('keySw').classList.toggle('on', keyOn);
+    document.getElementById('keyPanel').style.display = keyOn ? 'block' : 'none';
+    const d = document.getElementById('keyDisp');
+    if (d) d.textContent = keyOn ? 'on' : 'off';
+  }
+
+  const t0 = Date.now();
+  let builds = 0, totalBytes = 0;
+  document.getElementById('sesStart').textContent = new Date().toTimeString().slice(0,8);
+  setInterval(() => {
+    const e = Math.floor((Date.now() - t0) / 1000);
+    document.getElementById('uptime').textContent =
+      String(Math.floor(e/3600)).padStart(2,'0') + ':' +
+      String(Math.floor((e%3600)/60)).padStart(2,'0') + ':' +
+      String(e%60).padStart(2,'0');
+  }, 1000);
+
+  setTimeout(() => {
+    const i = document.getElementById('intro');
+    i.style.opacity = '0';
+    setTimeout(() => i.style.display = 'none', 850);
+  }, 1300);
+
+  function gv(l){const a="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";let n=a[Math.floor(Math.random()*a.length)];for(let i=1;i<l;i++)n+=(a+"0123456789")[Math.floor(Math.random()*(a.length+10))];return n;}
+  function gj(l){const p="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789[]#!?*";let s="";for(let i=0;i<l;i++)s+=p[Math.floor(Math.random()*p.length)];return s;}
+  function compress(s){let r="",c=1;for(let i=0;i<s.length;i++){if(s[i]===s[i+1])c++;else{r+=c+"|"+s[i]+"|";c=1;}}return r;}
+  function enc(s){const t="0123456789n_xX[]";let r="";for(let i=0;i<s.length;i++){const b=s.charCodeAt(i)&0xFF;r+=t[Math.floor(b/16)]+t[b%16];}return r;}
+
+  function build() {
+    const src = document.getElementById('input').value.trim();
+    if (!src) return;
+    const btn = document.getElementById('buildBtn');
+    const out = document.getElementById('output');
+    const useNV = document.getElementById('noVirt').checked;
+    const useKey = keyOn;
+    const vkey = (document.getElementById('validKey')||{}).value||'';
+    btn.textContent = "working..."; btn.disabled = true;
+    setTimeout(() => {
+      try {
+        const encoded = enc(compress(src));
+        const chunks = [];
+        for(let i=0;i<encoded.length;i+=500) chunks.push(encoded.slice(i,i+500));
+        const pvars = chunks.map(()=>gv(14));
+        const buf = [];
+        pvars.forEach((v,i)=>{buf.push(`local ${v}="${chunks[i].replace(/"/g,'\\"')}";`);buf.push(`local ${gv(15)}="${gj(1500)}";`);});
+        while(buf.join("").length<320000) buf.push(`local ${gv(16)}="${gj(1800)}";`);
+        const pagg = pvars.join('..');
+        const ch = `local _w=getfenv()[string.char(119,97,114,110)] coroutine.wrap(function() while true do _w(string.char(84,65,77,80,69,82,32,68,69,84,69,67,84,69,68,33)) task.wait(0.2) end end)()`;
+        let nvH = "";
+        if(useNV) nvH=`local _v_status=pcall(function() local _m=getmetatable(getfenv()) if _m then return true end end) if not _v_status then ${ch} while true do end end;`;
+        let kH = "";
+        if(useKey&&vkey){const ek=vkey.split('').map(c=>c.charCodeAt(0)).join(',');kH=`local _kv=string.char(${ek});if _ENV._KEY~=_kv then ${ch} while true do end end;`;}
+        const at=`local _valid=true;local _m_val=math.random(3,65);local _a1,_a2=0,0;local _f_trap=function() ${ch} while true do local x={} for j=1,1e6 do x[j]=j end end end;local _ret_dat={pcall(function()error("T",0)end)}local _ln=tonumber(string.match(tostring(_ret_dat[2] or ""),"%:(%d*)%:")) or 0;for _i=1,40 do local _sh=_i%2==0;local _rs={pcall(function()if _i==_m_val then local _l2=tonumber(string.match(tostring(({pcall(function()error("T",0)end)})[2] or ""),"%:(%d*)%:"))_valid=_valid and _ln==_l2 end if _sh then error("S",0)end return _i%256 end)}if _sh then _valid=_valid and _rs[1]==false else _valid=_valid and _rs[1]==true _a1=(_a1+_rs[2])%256 _a2=(_a2+(_i%256))%256 end end if not (_valid and _a1==_a2) then _f_trap() end;`;
+        const hdr=`_,_b_="LUARC3","dsc.gg/solace";do local i=string.char;local _f=getfenv() local _db=debug.info;local t=function(_)local n='0123456789n_xX[]'local r=string.gsub(_,'(.)(.)',function(a,b)local _p,s=pcall(function() return tostring(_db(string.byte,"s")) end)if s and s:find("@")then _f[i(112,114,105,110,116)](i(83,75,73,68,68,69,68))while true do end end return i((string.find(n,a,1,true)-1)*16+(string.find(n,b,1,true)-1))end)return r end;`;
+        const body=`${kH}${nvH}${at}local r=t(${pagg});local d="";local p={};for _s in string.gmatch(r,"[^|]+") do table.insert(p,_s) end;for i=1,#p,2 do local c=tonumber(p[i])or 1;for j=1,c do d=d..(p[i+1]or"")end end;(loadstring or load)(d)()end;`;
+        out.value = hdr+buf.join("")+body;
+        const kb = (out.value.length/1024).toFixed(1);
+        document.getElementById('copyBtn').style.display='inline-block';
+        const st=document.getElementById('stats');st.style.display='block';
+        st.textContent = `done · ${kb} KB · key: ${useKey?'on':'off'}`;
+        builds++; totalBytes+=out.value.length;
+        document.getElementById('totalB').textContent=builds;
+        document.getElementById('totalS').textContent=(totalBytes/1024).toFixed(1)+' KB';
+      } catch(e) { out.value="-- error: "+e.message; }
+      btn.textContent="GENERATE"; btn.disabled=false;
+    }, 800);
+  }
+
+  function copyOut() {
+    const o = document.getElementById('output'); o.select(); document.execCommand('copy');
+    const b = document.getElementById('copyBtn'); b.textContent='copied';
+    setTimeout(()=>b.textContent='copy', 1500);
+  }
+</script>
+</body>
+</html>
